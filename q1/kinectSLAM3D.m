@@ -63,32 +63,56 @@ S = [vehiclePriorCov zeros(vehicleStateNum,measPerFeature*featureNum);
 mu_S = zeros(fullStateNum,length(T)); % Belief history
 mu_S(:,1) = mu; % Initial belief
 
-%% Simulation Loop
-for i=1:length(T)-1
-   
-    % Simulate a disturbance
+%% Main Loop
+for t=2:length(T)
+    %% Simulation
+    % Generate a disturbance
     motionDisturbance = mvnrnd([0 0 0], motionDistCov)';
 
     % Position update
-    trueState(1,i+1) = trueState(1,i) + dt*speed(i)*cos(trueState(3,i));
-    trueState(2,i+1) = trueState(2,i) + dt*speed(i)*sin(trueState(3,i));
-    trueState(3,i+1) = trueState(3,i) - dt*speed(i)*(tan(steerAngle(i))/wheelbase);
+    trueState(1,t) = trueState(1,t-1) + dt*speed(t)*cos(trueState(3,t-1));
+    trueState(2,t) = trueState(2,t-1) + dt*speed(t)*sin(trueState(3,t-1));
+    trueState(3,t) = trueState(3,t-1) - dt*speed(t)*(tan(steerAngle(t))/wheelbase);
 
-    trueState(:,i+1) = trueState(:,i+1) + motionDisturbance;
+    trueState(:,t) = trueState(:,t) + motionDisturbance;
+    
+    %% Estimation
+    % Using Extended Kalman Filter SLAM
+    
+    %% Plotting
+    figure(1);
+    subplot(1,2,1); hold on; 
+    if t == 2
+        % only plot the trees on the first iteration of the main loop
+        plot(map(1,:),map(2,:),'oc');
+    end
+    % add the newest part of the vehicle path to the plot
+    plot(trueState(1,t-1:t),trueState(2,t-1:t), 'yx--');
+    % show the true heading of the robot
+    yaw = trueState(3,t); pl = 2; % pointer length
+    plot([trueState(1,t) trueState(1,t)+pl*cos(yaw)],[trueState(2,t) trueState(2,t)+pl*sin(yaw)], 'r-')
+
+    axis equal; axis([-15 15 -15 15]);
+    title('3D SLAM with Range & Bearing Measurements','FontSize',14);
+    
+    subplot(1,2,2);
+    image(S);
+    colormap('gray');
+    title('Covariance Matrix','FontSize',14);
 end
 
-%% Plotting
-% Trajectory figure
-figure(1);clf; hold on;
-% initial location marker
-plot(trueState(1,1),trueState(2,1),'gd','MarkerSize',10,'MarkerFaceColor','g');
-% plot the entire path
-plot(trueState(1,:),trueState(2,:),'r');
-plot(map(1,:),map(2,:),'oc');
-xlabel('X [m]','FontSize',14)
-ylabel('Y [m]','FontSize',14)
-title('Vehicle Trajectory','FontSize',14)
-axis equal
+% %% Figure Generation for Final Results
+% % Trajectory figure
+% figure(2);clf; hold on;
+% % initial location marker
+% plot(trueState(1,1),trueState(2,1),'gd','MarkerSize',10,'MarkerFaceColor','g');
+% % plot the entire path
+% plot(trueState(1,:),trueState(2,:),'r');
+% plot(map(1,:),map(2,:),'oc');
+% xlabel('X [m]','FontSize',14)
+% ylabel('Y [m]','FontSize',14)
+% title('Vehicle Trajectory','FontSize',14)
+% axis equal
 end
 
 function inView = isInView(feature,vehicleState, maxRange, azimuthMax, altitudeMax)
