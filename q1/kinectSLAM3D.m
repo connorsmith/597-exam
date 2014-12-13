@@ -15,12 +15,18 @@ disturbanceCov = [  0.05^2 0 0;
 
 % allocating state and control arrays
 state = zeros(3, length(T));    % bicycle state vector array
-state(:,1) = [0 0 0]';          % initial state
-
+state(:,1) = [0 10 0]';          % initial state
 steerAngle = deg2rad(3)*ones(1, length(T)); % steering control signal
 speed = 3*ones(1,length(T)); % commanded speed
 
-%% Simulation loop
+%% Feature Generation
+featureNum = 200; featureDistParam = 30; maxFeatureHeight = 2;
+map = featureDistParam*rand(2,featureNum);
+map(1,:) = map(1,:)-featureDistParam/2; 
+map(2,:) = map(2,:)-featureDistParam/2; 
+map(3,:) = maxFeatureHeight*rand(1,featureNum);
+
+%% Simulation Loop
 for i=1:length(T)-1
    
     % Simulate a disturbance
@@ -41,7 +47,7 @@ figure(1);clf; hold on;
 plot(state(1,1),state(2,1),'gd','MarkerSize',10,'MarkerFaceColor','g');
 % plot the entire path
 plot(state(1,:),state(2,:),'r');
-
+plot(map(1,:),map(2,:),'oc');
 xlabel('X [m]','FontSize',14)
 ylabel('Y [m]','FontSize',14)
 title('Vehicle Trajectory','FontSize',14)
