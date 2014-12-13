@@ -29,16 +29,21 @@ motionDistCov = [  0.05^2 0 0;
                     0 0 0.01^2];
 vehicleStateNum = length(motionDistCov);
 
+% EKF Estimates of Process and Measurement Noise
+R = motionDistCov;
+Q = measNoiseCov;
+
 % Control Signals
 steerAngle = deg2rad(3)*ones(1, length(T)); % steering control signal
 speed = 3*ones(1,length(T)); % commanded speed
+u = [speed; speed.*tan(steerAngle)]; clear steerAngle speed;
 
-%% Feature Generation
-featureNum = 200; featureDistParam = 30; maxFeatureHeight = 1;
+% Feature Generation
+featureNum = 200; featureDistParam = 30; maxFeatureHeight = 2;
 map = featureDistParam*rand(2,featureNum);
 map(1,:) = map(1,:)-featureDistParam/2; 
 map(2,:) = map(2,:)-featureDistParam/2; 
-map(3,:) = maxFeatureHeight*ones(1,featureNum);
+map(3,:) = maxFeatureHeight*rand(1,featureNum);
 isNewFeature = ones(featureNum,1);
 
 %% Simulation Initializations
@@ -71,9 +76,9 @@ for t=2:length(T)
     motionDisturbance = mvnrnd([0 0 0], motionDistCov)';
 
     % Position update
-    trueState(1,t) = trueState(1,t-1) + dt*speed(t)*cos(trueState(3,t-1));
-    trueState(2,t) = trueState(2,t-1) + dt*speed(t)*sin(trueState(3,t-1));
-    trueState(3,t) = trueState(3,t-1) - dt*speed(t)*(tan(steerAngle(t))/wheelbase);
+    trueState(1,t) = trueState(1,t-1) + dt*cos(trueState(3,t-1))*u(1,t);
+    trueState(2,t) = trueState(2,t-1) + dt*sin(trueState(3,t-1))*u(1,t);
+    trueState(3,t) = trueState(3,t-1) - (dt/wheelbase)*u(2,t);
     trueState(:,t) = trueState(:,t) + motionDisturbance;
     trueState(3,t) = wrapTo2Pi(trueState(3,t));
     % Generate measurements
@@ -96,8 +101,19 @@ for t=2:length(T)
         end
     end
     
-    %% Estimation
-    % Using Extended Kalman Filter SLAM
+    %% Estimation, Extended Kalman Filter SLAM 
+    % Prediction Update
+    mu(1:3) = [ mu(1)+u(1,t)*cos(mu(3))*dt;
+                mu(2)+u(1,t)*sin(mu(3))*dt;
+                mu(3)+u(2,t)*(-dt/wheelbase)];
+    
+    Gt = [ 1 0 -u(1,t)*sin(mu(3))*dt;
+           0 1 u(1,t)*cos(mu(3))*dt;
+           0 0 1];
+    
+    S(1:vehicleStateNum,1:vehicleStateNum) = Gt*S(1:vehicleStateNum,1:vehicleStateNum)*Gt' + R;
+     
+    % Measurement Update
     
     %% Plotting
     if rtPlotFlag
