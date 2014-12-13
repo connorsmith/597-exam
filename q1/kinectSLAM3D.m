@@ -55,7 +55,7 @@ fullStateNum = robotStateNum+measPerFeature*featureNum; % # of SLAM states
 meas = zeros(measPerFeature*featureNum,length(T)); % Measurement history
 
 % Prior over vehicle state
-vehiclePrior = [0 0 0]';
+vehiclePrior = initialState;
 vehiclePriorCov = 0.00000000001*eye(3);
 
 % Prior over feature map
@@ -152,12 +152,16 @@ for t=2:length(T)
                 dz/rxy^2,  0,  -dx/rxy^2, -dz/rxy^2, 0, dx/rxy^2]*featureFilter;
  
             % Actual measurement update
-            kalmainGain = S*Ht'/(Ht*S*Ht'+Q); % calculate Kalman Gain
+            kalmanGain = S*Ht'/(Ht*S*Ht'+Q); % calculate Kalman Gain
             
             % calculate innovation (diff between true meas and meas from estimated state)
-            innovation = meas(featId:featId+measPerFeature-1,t)-[rp;(atan2(dy,dx)-bel_yaw);atan2(dz,dx)]; 
-            mu = mu + kalmainGain*innovation;  % update belief (kalman gain times the innovation)
-            S = (eye(fullStateNum)-kalmainGain*Ht)*S; % covariance update
+            angleDiff = wrapTo2Pi(meas(featId+1,t)) - wrapTo2Pi(atan2(dy,dx)-bel_yaw);
+            angleDiff = min(angleDiff, 2*pi - angleDiff);
+            innovation = [  meas(featId,t) - rp;
+                            angleDiff;
+                            meas(featId+2,t) - atan2(dz,dx)];
+            mu = mu + kalmanGain*innovation;  % update belief (kalman gain times the innovation)
+            S = (eye(fullStateNum)-kalmanGain*Ht)*S; % covariance update
         end
     end
  
@@ -174,6 +178,7 @@ for t=2:length(T)
         end
         % add the newest part of the vehicle path to the plot
         plot(trueState(1,t-1:t),trueState(2,t-1:t), 'yx--');
+        plot(mu_S(1,t-1:t),mu_S(2,t-1:t), 'go--');
         % show the true heading of the robot
         yaw = trueState(3,t); pl = 2; % pointer length
         plot([trueState(1,t) trueState(1,t)+pl*cos(yaw)],[trueState(2,t) trueState(2,t)+pl*sin(yaw)], 'r-')
@@ -183,8 +188,8 @@ for t=2:length(T)
                   fid = measPerFeature*(fId-1)+1;
                   xyRange = sqrt(abs(meas(fid,t)^2-kinectHeight^2));
                   % plot the rays from the laser scanner
-                  plot([trueState(1,t) trueState(1,t)+xyRange*cos(meas(fid+1,t)+yaw)],...
-                      [trueState(2,t) trueState(2,t)+xyRange*sin(meas(fid+1,t)+yaw)], 'g');
+%                   plot([trueState(1,t) trueState(1,t)+xyRange*cos(meas(fid+1,t)+yaw)],...
+%                       [trueState(2,t) trueState(2,t)+xyRange*sin(meas(fid+1,t)+yaw)], '--g');
     %               plot(trueState(6+fid),trueState(6+fj), 'gx')
     %               mu_pos = [trueState(6+fid) trueState(6+fj)];
     %               S_pos = [S(6+fid,6+fid) S(6+fid,6+fj); S(6+fj,6+fid) S(6+fj,6+fj)];
