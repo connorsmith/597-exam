@@ -1,8 +1,8 @@
 function kinectSLAM3D()
 %% Parameter Declarations
 % Time Params
-rng(528491);
-runTime = 25;  % End time (seconds)
+rng(528492);
+runTime = 20;  % End time (seconds)
 dt = 0.1; % Time step (seconds)
 T = 0:dt:runTime; % Time vector
 rtPlotFlag = 1;
@@ -40,7 +40,7 @@ speed = 3*ones(1,length(T)); % commanded speed
 u = [speed; speed.*tan(steerAngle)]; clear steerAngle speed;
 
 % Feature Generation
-featureNum = 200; featureDistParam = 30; maxFeatureHeight = 2;
+featureNum = 25; featureDistParam = 30; maxFeatureHeight = 2;
 map = featureDistParam*rand(2,featureNum);
 map(1,:) = map(1,:)-featureDistParam/2; 
 map(2,:) = map(2,:)-featureDistParam/2; 
@@ -70,6 +70,8 @@ S = [vehiclePriorCov zeros(robotStateNum,measPerFeature*featureNum);
 mu_S = zeros(fullStateNum,length(T)); % Belief history
 mu_S(:,1) = mu; % Initial belief
 
+ad = [];
+
 %% Main Loop
 for t=2:length(T)
     %% Simulation
@@ -95,10 +97,12 @@ for t=2:length(T)
             trueDy = map(2,featureId)-trueState(2,t);
             trueDz = map(3,featureId)-kinectHeight;
             trueRange = sqrt(trueDx^2 + trueDy^2 + trueDz^2);
+            trueRxy = sqrt(trueRange^2 - trueDz^2);
             trueAzimuthAngle = atan2(trueDy,trueDx)-trueState(3,t);
-            trueAltitudeAngle = atan2(trueDz,trueDx);
+            trueAltitudeAngle = atan2(trueDz,trueRxy);
             featId = measPerFeature*(featureId-1)+1;
             meas(featId:featId+measPerFeature-1,t) = [trueRange;trueAzimuthAngle;trueAltitudeAngle] + measurementNoise;
+            meas(featId+1:featId+measPerFeature-1,t) = wrapToPi(meas(featId+1:featId+measPerFeature-1,t));
         end
     end
     
@@ -134,7 +138,7 @@ for t=2:length(T)
                 mu(baseId+2) =  kinectHeight + meas_alt*meas_range;
                 isNewFeature(fId) = 0;
             end
-             % Linearization about estimated state
+            % Linearization about estimated state
             dx = mu(baseId)     - bel_x;
             dy = mu(baseId+1)   - bel_y;
             dz = mu(baseId+2)   - kinectHeight;
@@ -155,11 +159,12 @@ for t=2:length(T)
             kalmanGain = S*Ht'/(Ht*S*Ht'+Q); % calculate Kalman Gain
             
             % calculate innovation (diff between true meas and meas from estimated state)
-            angleDiff = wrapTo2Pi(meas(featId+1,t)) - wrapTo2Pi(atan2(dy,dx)-bel_yaw);
+            angleDiff = abs(wrapTo2Pi(meas(featId+1,t)) - wrapTo2Pi(atan2(dy,dx)-bel_yaw));
             angleDiff = min(angleDiff, 2*pi - angleDiff);
+            ad(end+1) = angleDiff;
             innovation = [  meas(featId,t) - rp;
                             angleDiff;
-                            meas(featId+2,t) - atan2(dz,dx)];
+                            meas(featId+2,t) - atan2(dz,rxy)]
             mu = mu + kalmanGain*innovation;  % update belief (kalman gain times the innovation)
             S = (eye(fullStateNum)-kalmanGain*Ht)*S; % covariance update
         end
@@ -174,7 +179,7 @@ for t=2:length(T)
         subplot(1,2,1); hold on; 
         if t == 2
             % only plot the features on the first iteration of the main loop
-            plot(map(1,:),map(2,:),'oc');
+            plot(map(1,:),map(2,:),'om');
         end
         % add the newest part of the vehicle path to the plot
         plot(trueState(1,t-1:t),trueState(2,t-1:t), 'yx--');
@@ -189,8 +194,8 @@ for t=2:length(T)
                   xyRange = sqrt(abs(meas(fid,t)^2-kinectHeight^2));
                   % plot the rays from the laser scanner
 %                   plot([trueState(1,t) trueState(1,t)+xyRange*cos(meas(fid+1,t)+yaw)],...
-%                       [trueState(2,t) trueState(2,t)+xyRange*sin(meas(fid+1,t)+yaw)], '--g');
-    %               plot(trueState(6+fid),trueState(6+fj), 'gx')
+%                       [trueState(2,t) trueState(2,t)+xyRange*sin(meas(fid+1,t)+yaw)], '--c');
+%                   plot(trueState(6+fid),trueState(6+fj), 'gx')
     %               mu_pos = [trueState(6+fid) trueState(6+fj)];
     %               S_pos = [S(6+fid,6+fid) S(6+fid,6+fj); S(6+fj,6+fid) S(6+fj,6+fj)];
     %               error_ellipse(S_pos,mu_pos,0.95);
@@ -238,10 +243,11 @@ dz = feature(3)-vehicleState(3);
 yaw = vehicleState(4);
 
 range = sqrt(dx^2+dy^2+dz^2);
+rxy = sqrt(range^2 - dz^2);
 azimuthAngle = wrapToPi(atan2(dy,dx)-yaw);
-altitudeAngle = wrapToPi(atan2(dz,abs(dx)));
+altitudeAngle = wrapToPi(atan2(dz,rxy));
 
-if ((range<maxRange) && (abs(azimuthAngle)<azimuthMax) && (abs(altitudeAngle)<altitudeMax))
+if ((range>1) &&(range<maxRange) && (abs(azimuthAngle)<azimuthMax) && (abs(altitudeAngle)<altitudeMax))
     inView = 1;
 else
     inView = 0;
