@@ -21,11 +21,24 @@ ob{13} = [57 16; 46 16; 46 10; 57 10; 57 13; 56 13; 56 11; 47 11; 47 15; 57 15; 
 
 dock = [5 4];
 
-sampleNum = 15;
-r_positions = [ 60*rand(1,sampleNum);
-                20*rand(1,sampleNum);
-                2*pi*rand(1,sampleNum);];
+v_map = [map_boundary; NaN NaN];
+for i=1:length(ob)
+    v_map = [v_map; ob{i}; NaN NaN];
+end
 
+sampleNum = 15;
+r_positions = [ zeros(2,sampleNum);
+                2*pi*rand(1,sampleNum);];
+samples_generated = 1;
+
+while(samples_generated <= sampleNum)
+    pos = [60*rand(1,1);20*rand(1,1)];
+    if(polygonsOverlap(pos',v_map))
+        r_positions(1:2,samples_generated) = pos;
+        samples_generated = samples_generated + 1;
+    end
+end
+            
 figure(1);clf;hold on;
 fill([0 60 60 0], [0 0 20 20], 'b');
 fill(map_boundary(:,1),map_boundary(:,2),'w');
