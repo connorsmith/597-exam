@@ -1,6 +1,6 @@
 % Cleaning floor map
 function floorplan_primitives()
-clear;
+clear; rng(3883838);
 map_boundary = [0 0; 12 0; 12 2; 14 2; 14 0; 40 0;40 2; 42 2; 42 0; 60 0;
        60 20; 
        55 20; 55 18; 43 18; 43 20; 32 20; 32 18; 15 18; 15 20; 10 20; 5 20; 5 10; 3 10; 3 20; 0 20; 
@@ -45,9 +45,52 @@ fill(map_boundary(:,1),map_boundary(:,2),'w');
 for i = 1:length(ob)
     fill(ob{i}(:,1),ob{i}(:,2),'b');
 end
-plot(r_positions(1,:), r_positions(2,:), 'ro')
+plot(r_positions(1,:), r_positions(2,:), 'rx')
+
+% vehicle itself
+for rect=1:sampleNum
+    b = getBoundingBox(0.25,0.125,r_positions(3,rect),0.5,0.625);
+    b(1,:) = b(1,:) + r_positions(1,rect);
+    b(2,:) = b(2,:) + r_positions(2,rect);
+    plot(b(1,:),b(2,:),'m','LineWidth',2)
+end
+
+% % straight motion primitive
+% for rect=1:sampleNum
+%     b = getBoundingBox(0.25,0.125,r_positions(3,rect),0.5,2.625);
+%     b(1,:) = b(1,:) + r_positions(1,rect);
+%     b(2,:) = b(2,:) + r_positions(2,rect);
+%     plot(b(1,:),b(2,:),'--c','LineWidth',2)
+% end
+
+% left turn motion primitive
+for rect=1:sampleNum
+    b = getBoundingBox(0.75,0.125,r_positions(3,rect),1.0154,0.8321);
+    b(1,:) = b(1,:) + r_positions(1,rect);
+    b(2,:) = b(2,:) + r_positions(2,rect);
+    plot(b(1,:),b(2,:),'--c','LineWidth',2)
+end
+
+% left turn motion primitive
+for rect=1:sampleNum
+    b = getBoundingBox(0.25,0.125,r_positions(3,rect),1.0154,0.8321);
+    b(1,:) = b(1,:) + r_positions(1,rect);
+    b(2,:) = b(2,:) + r_positions(2,rect);
+    plot(b(1,:),b(2,:),'--c','LineWidth',2)
+end
 axis equal
        
+end
 
+function b = getBoundingBox(x,y,h,xl,yl)
+% function drawcar(x,y,h,xl,yl)
+% This function plots a car at position x,y heading h with length xl and
+% width yl.
+
+% Draw the wheels
+
+a = [0 0 xl xl 0; 0 yl yl 0 0]; % The coordinates of the head of the original vector
+a = a - [x*ones(1,5);y*ones(1,5)];
+b = [cos(h)  -sin(h) ; sin(h)  cos(h)] * a; % A matrix multiplication
 end
        
