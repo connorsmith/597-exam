@@ -52,22 +52,33 @@ for rect=1:sampleNum
     b = getBoundingBox(0.25,0.125,r_positions(3,rect),0.5,0.625);
     b(1,:) = b(1,:) + r_positions(1,rect);
     b(2,:) = b(2,:) + r_positions(2,rect);
-    plot(b(1,:),b(2,:),'m','LineWidth',2)
+    plot(b(1,:),b(2,:),'k','LineWidth',2)
 end
 
-% % straight motion primitive
-% for rect=1:sampleNum
-%     b = getBoundingBox(0.25,0.125,r_positions(3,rect),0.5,2.625);
-%     b(1,:) = b(1,:) + r_positions(1,rect);
-%     b(2,:) = b(2,:) + r_positions(2,rect);
-%     plot(b(1,:),b(2,:),'--c','LineWidth',2)
-% end
+collisions = zeros(sampleNum,3);
+% straight motion primitive
+for rect=1:sampleNum
+    b = getBoundingBox(0.25,0.125,r_positions(3,rect),0.5,2.625);
+    b(1,:) = b(1,:) + r_positions(1,rect);
+    b(2,:) = b(2,:) + r_positions(2,rect);
+    count = 0;
+    for o=1:length(ob)
+        count = count + polygonsOverlap(b',ob{o}(:,:));
+    end
+    collisions(rect,1) = count;
+    plot(b(1,:),b(2,:),'--g','LineWidth',2)
+end
 
 % left turn motion primitive
 for rect=1:sampleNum
     b = getBoundingBox(0.75,0.125,r_positions(3,rect),1.0154,0.8321);
     b(1,:) = b(1,:) + r_positions(1,rect);
     b(2,:) = b(2,:) + r_positions(2,rect);
+    count = 0;
+    for o=1:length(ob)
+        count = count + polygonsOverlap(b',ob{o}(:,:));
+    end
+    collisions(rect,2) = count;
     plot(b(1,:),b(2,:),'--c','LineWidth',2)
 end
 
@@ -76,7 +87,12 @@ for rect=1:sampleNum
     b = getBoundingBox(0.25,0.125,r_positions(3,rect),1.0154,0.8321);
     b(1,:) = b(1,:) + r_positions(1,rect);
     b(2,:) = b(2,:) + r_positions(2,rect);
-    plot(b(1,:),b(2,:),'--c','LineWidth',2)
+    count = 0;
+    for o=1:length(ob)
+        count = count + polygonsOverlap(b',ob{o}(:,:));
+    end
+    collisions(rect,3) = count;
+    plot(b(1,:),b(2,:),'--m','LineWidth',2)
 end
 axis equal
        
